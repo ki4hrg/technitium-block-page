@@ -1,0 +1,7 @@
+node_modules/
+dist/
+data/
+.env
+config/policy.yaml
+*.db
+*.db-*

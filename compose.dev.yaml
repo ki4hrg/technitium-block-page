@@ -1,0 +1,17 @@
+# Local development: a throwaway Technitium to point `npm run dev` at.
+#   docker compose -f compose.dev.yaml up -d
+#   open http://localhost:15380 (admin / admin), install "Advanced Blocking" and
+#   "Query Logs (Sqlite)" from Apps > App Store, then paste a config from `npm run migrate:print`.
+services:
+  technitium:
+    image: technitium/dns-server:latest
+    environment:
+      DNS_SERVER_ADMIN_PASSWORD: admin
+    ports:
+      - "15380:5380"
+      - "15353:53/udp"
+      - "15353:53/tcp"
+    volumes:
+      - technitium:/etc/dns
+volumes:
+  technitium:

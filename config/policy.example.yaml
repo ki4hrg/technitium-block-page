@@ -1,0 +1,82 @@
+# Copy to config/policy.yaml (or mount at $POLICY_FILE) and edit.
+# Secrets come from the environment: TECHNITIUM_TOKEN, OIDC_CLIENT_SECRET, SESSION_SECRET,
+# plus any tokenEnv / secretEnv names referenced below.
+
+technitium:
+  url: http://10.0.0.53:5380
+  # dnsServer: 10.0.0.53            # for reverse-DNS device names; defaults to the url host
+  advancedBlockingAppName: Advanced Blocking
+  # queryLogger:                     # auto-detected from /api/apps/list when omitted
+  #   name: Query Logs (Sqlite)
+  #   classPath: QueryLogsSqlite.App
+  pauseBuiltInBlocking: true         # a global pause also pauses Settings > Blocking
+
+blockPage:
+  ip: 10.0.0.250                     # = blockingAddresses on every Advanced Blocking group
+  port: 80
+  hostnames: [blocked.home.arpa]     # bookmarkable "what was blocked on this device" page
+
+admin:
+  publicUrl: https://blocks.example.com   # behind your reverse proxy, real TLS cert
+  port: 3000
+
+oidc:
+  issuer: https://id.example.com     # Pocket ID
+  clientId: technitium-blocks
+  # Callback URL to register in Pocket ID: <publicUrl>/auth/callback
+
+# Can do anything, anywhere (revoke others' overrides, see the activity log).
+admins:
+  users: [john]
+  groups: [admins]
+
+# Durations: 15m, 1h, 2d, today (until local midnight; set TZ), permanent (allowPermanent only).
+# require: none          -> anyone on that VLAN, straight from the block page, no login
+# require: {users, groups} -> Pocket ID users/groups (or integration users via their mapped groups)
+vlans:
+  - id: trusted
+    name: Main
+    cidrs: [10.0.10.0/24]
+    group: trusted                   # Advanced Blocking group name
+    actions:
+      allowTemporary: { require: none, durations: [15m, 1h, 1d] }
+      allowPermanent: { require: none }
+      pause: { require: none, durations: [15m, 1h] }
+
+  - id: kids
+    name: Kids
+    cidrs: [10.0.30.0/24]
+    group: kids
+    showDetails: true
+    actions:
+      requestUnblock: { enabled: true }
+      allowTemporary: { require: { groups: [parents, grandparents] }, durations: [15m, 1h, today] }
+      allowPermanent: { require: { groups: [parents] } }
+      pause: { require: { users: [john] }, durations: [30m, 1h] }
+
+# Overrides that apply to every VLAN.
+global:
+  pause: { require: { groups: [admins] }, durations: [15m, 1h, 4h] }
+  # allowTemporary: { require: { groups: [admins] }, durations: [1h] }
+  # allowPermanent: { require: { groups: [admins] } }
+
+# Machine clients of /api/v1 (e.g. Home Assistant). They send
+#   Authorization: Bearer <token>   and   X-Actor: <user>
+# Only listed actors may act, with the groups given here (never matched by user name).
+integrations:
+  homeassistant:
+    tokenEnv: HA_API_TOKEN
+    users:
+      grandma: { groups: [grandparents] }
+      grandpa: { groups: [grandparents] }
+      john: { groups: [parents, admins] }
+
+# Outbound event webhooks (e.g. a Home Assistant webhook trigger).
+# Events: block.created, request.created, request.approved, request.denied,
+#         override.created, override.revoked
+webhooks: []
+#  - url: http://homeassistant.local:8123/api/webhook/technitium-blocks-XXXX
+#    events: [request.created]
+#    secretEnv: HA_WEBHOOK_SECRET    # sent as X-Webhook-Secret
+
+blockEventTtlMinutes: 60             # how long a block code stays valid
