@@ -213,6 +213,25 @@ you map under `integrations.homeassistant.users`.
 A custom HA integration with pause switches, a pending-requests sensor and approve/deny
 services for a grandparents dashboard is planned on top of this same API.
 
+## Troubleshooting
+
+- **A server on a filtered range breaks because of blocking.** Any IP inside a mapped CIDR
+  (e.g. `172.16.80.0/24`, which also contains isaiah `.10` and Pocket ID `.11`) is filtered by
+  that group's lists. To exempt specific hosts, map them to an unfiltered group. The longest
+  prefix wins, so they override the `/24`:
+
+  ```json
+  "networkGroupMap": { "172.16.80.10/32": "unfiltered", "172.16.80.11/32": "unfiltered", ... },
+  "groups": [ ..., { "name": "unfiltered", "enableBlocking": false } ]
+  ```
+
+  Don't add these hosts to `policy.yaml`. They aren't clients, so they never see a block page.
+- **`allowed` entries are plain domains.** `example.com` already covers every subdomain, and
+  `*.example.com` matches nothing.
+- **Container crash-loops with `EISDIR`.** `POLICY_PATH` points at a host path that doesn't
+  exist, so Docker created an empty directory there instead. Set `POLICY_PATH` to an absolute
+  path on the Docker host.
+
 ## Development
 
 ```sh
