@@ -1,9 +1,11 @@
 # Production stack (deployed by Dockhand). The image is built and pushed by GitHub Actions.
 #
-# Networking: the block page needs its own LAN IP (= blockingAddresses in Advanced Blocking) and
-# must see real client source IPs, so it sits on a macvlan network. The admin UI is reached by
-# your reverse proxy over the shared "proxy" bridge network (the host itself can't talk to
-# macvlan containers, which is why both networks are attached).
+# Networking: the container gets its own LAN IP on a macvlan network. That IP serves both
+# listeners:
+#   - :80   block page (= blockingAddresses in Advanced Blocking; must see real client IPs)
+#   - :3000 admin UI   (point your reverse proxy at http://<BLOCK_PAGE_IP>:3000)
+# The Docker host itself can't reach macvlan containers, so the reverse proxy must run on
+# another machine (e.g. Caddy on the router).
 
 services:
   block-page:
@@ -22,10 +24,6 @@ services:
     networks:
       lan:
         ipv4_address: ${BLOCK_PAGE_IP:-10.0.0.250}
-        # Default route via the LAN so replies to other VLANs go back through the router,
-        # not NAT'd out the bridge (requires Docker Engine 28+ / Compose 2.33+).
-        gw_priority: 1
-      proxy: {}
 
 volumes:
   data:
@@ -39,6 +37,3 @@ networks:
       config:
         - subnet: ${LAN_SUBNET:-10.0.0.0/24}
           gateway: ${LAN_GATEWAY:-10.0.0.1}
-  proxy:
-    external: true
-    name: ${PROXY_NETWORK:-proxy}

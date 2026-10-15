@@ -88,16 +88,18 @@ The block page needs its **own IP address on the LAN**, and it must see each dev
 **real source IP**. That means routed traffic with no NAT and no reverse proxy in front of
 port 80.
 
-`compose.yaml` sets this up:
-- A macvlan network gives the container that IP.
-- A second bridge network (`proxy`) lets your existing reverse proxy reach the admin UI on
-  :3000. A Docker host can't reach its own macvlan containers, which is why the second network
-  is needed.
+`compose.yaml` gives the container that IP on a macvlan network, and both listeners live on
+it: the block page on :80, and the admin UI on :3000. Point your reverse proxy at
+`http://<BLOCK_PAGE_IP>:3000`. A Docker host can't reach its own macvlan containers, so the
+proxy has to run on another machine (e.g. Caddy on the router). If it doesn't, attach a second
+bridge network and publish :3000 on it.
 
 Firewall rules:
 - **Every VLAN** must reach `BLOCK_PAGE_IP:80`.
 - **VLANs where someone signs in on the same device** must also reach the admin hostname and
   Pocket ID.
+- Only the reverse proxy needs to reach `BLOCK_PAGE_IP:3000`. You can firewall it off from
+  everything else.
 - Kid VLANs don't need those two if approvals always happen on a parent's phone.
 
 **HTTPS sites:** browsers expect a certificate for the real site, so a blocked `https://` page
